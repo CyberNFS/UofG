@@ -10,11 +10,15 @@ def activityNotifications(fileName):
         # initialise count
         count = 0
         frequency_dict = [0] * 2001
+        # number of days – frequency
         for i in range(d):
             frequency_dict[expenditure[i]] += 1
+        # create the arrays
         for i in range(n - d):
             trailing_expenditure = expenditure[i:i + d]
+            # find median help function below
             median = find_median(frequency_dict, d)
+            # set notification condition
             if expenditure[i + d] >= 2 * median:
                 count += 1
             frequency_dict[expenditure[i]] -= 1

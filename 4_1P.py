@@ -60,3 +60,17 @@ def getBirthdays(fileName, book):
 book = {}
 getBirthdays('birthdays.txt', book)
 print(book)
+
+
+def activityNotifications(fileName):
+    with open(fileName) as f:
+        n, d = map(int, f.readline().strip().split())
+        expenditure = list(map(int, f.readline().strip().split()))
+        count = 0
+        for i in range(n - d):
+            trailing_expenditure = expenditure[i:i + d]
+            trailing_expenditure.sort()
+            median = trailing_expenditure[d // 2]
+            if expenditure[i + d] >= 2 * median:
+                count += 1
+        return count
