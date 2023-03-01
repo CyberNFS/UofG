@@ -5,6 +5,10 @@ import sys
 
 start_time = time.time()
 
+def time_end(n):
+    if n <= 60.0:
+
+
 
 def collatz_sequence(n, memo):
     """Use memoization to avoid recomputing the length of the chain for
