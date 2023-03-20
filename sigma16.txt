@@ -1,0 +1,217 @@
+;********************************************************************
+; Low level algorithm
+;********************************************************************
+
+; CmdDelete:
+;DeleteListLoop:
+;    if p = nil then goto DeleteListLoopDone
+;    q := (*p).next
+;    if q = nil then goto DeleteListElse
+;    if (*q).value = x then goto DeleteListThen
+;DeleteListElse:
+;    p := q
+;    q := (*q).next
+;    goto DeleteListLoop
+;DeleteListThen:
+;    (*p).next := (*q).next
+;    ReleaseNode(q)
+;    q := nil
+;DeleteListLoopDone:
+;    goto CmdDone
+
+; CmdSearch:
+;SearchListLoop:
+;    p := (*p).next
+;    if p = nil then goto SearchListLoopDone
+;    if (*p).value = x then goto SearchListFound
+;    goto SearchListLoop
+;SearchListLoopDone:
+;    write "Not Found"
+;    goto CmdDone
+;SearchListFound:
+;    write "Found"
+;    goto CmdDone
+
+; CmdPrint:
+;PrintListLoop:
+;    p := (*p).next
+;    if p = nil then goto PrintListLoopDone
+;    WriteValIntFixedWidth ((*p).value)
+;    p := (*p).next
+;    goto PrintListLoop
+;PrintListLoopDone:
+;    goto CmdDone
+
+
+;********************************************************************
+; Assembly language implementation
+;********************************************************************
+
+;--------------------------------------------------------------------
+; CmdDelete •••••••••••••••••••••••••••••••••••••••••••••••••••••••••
+;--------------------------------------------------------------------
+
+; Delete the first node whose value is x.  If none is found,
+; do nothing.
+
+CmdDelete
+; Print out the command record
+; print "Delete "
+    lea    R8,2[R0]            ; R8 := trap code for write
+    lea    R9,MsgDelete[R0]    ; R9 := &"Delete "
+    lea    R10,7[R0]           ; R10 := string length
+    trap   R8,R9,R10           ; write "Delete "
+; print x
+    load   R1,CmdArgX[R0]      ; R1 := x
+    jal    R13,WriteValIntFixedWidth[R0]  ; write integer
+; print " from list "
+    lea    R8,2[R0]            ; R8 := trap code for write
+    lea    R9,MsgFrom[R0]      ; R9 := &" from list "
+    lea    R10,11[R0]          ; R10 := string length
+    trap   R8,R9,R10           ; write " from "
+; print i
+    add    R1,R3,R0            ; R1 = i = index of list to be deleted from
+    jal    R13,WriteValIntFixedWidth[R0]  ; write integer
+    jal    R13,WriteNewLine[R0]
+;--------------------------------------------------------------------;--------------------------------------------------------------------;--------------------------------------------------------------------
+; Initialize p
+    load R6, CmdArgP[R0]       ; R6 := p (pointer to current node in list)
+
+DeleteLoop
+; Check if p is nil
+    cmp R6, R0                 ; compare p, nil
+    jumpeq CmdDone[R0]         ; if p = nil then goto CmdDone
+
+; Load q
+    load R7, 1[R6]             ; R7 := q (pointer to next node in list)
+
+; Check if q is nil
+    cmp R7, R0                 ; compare q, nil
+    jumpne DeleteCheck[R0]     ; if q != nil then goto DeleteCheck
+    jump DeleteNext[R0]        ; else goto DeleteNext
+
+DeleteCheck
+; Check if q.value == x
+    load R5, CmdArgX[R0]       ; R5 := x (value to delete)
+    load R8, 0[R7]             ; R8 := q.value
+    cmp R5, R8                 ; compare x, q.value
+    jumpeq Delete[R0]          ; if x == q.value then goto Delete
+    jump DeleteNext[R0]        ; else goto DeleteNext
+
+Delete
+; Update p.next and free q
+    load R9, 1[R7]             ; R9 := q.next
+    store R9, 1[R6]            ; (*p).next := q.next
+    jal R13, FreeNode[R0]      ; FreeNode(q)
+    jump CmdDone[R0]           ; go to finish command
+
+DeleteNext
+; Update p
+    add R6, R7, R0             ; p := q
+    jump DeleteLoop[R0]        ; goto DeleteLoop
+
+;--------------------------------------------------------------------;--------------------------------------------------------------------;--------------------------------------------------------------------
+    jump   CmdDone[R0]         ; go to finish command
+
+
+;--------------------------------------------------------------------
+; CmdSearch •••••••••••••••••••••••••••••••••••••••••••••••••••••••••
+;--------------------------------------------------------------------
+
+CmdSearch
+; Print out the command record
+; print "Search list "
+    lea    R8,2[R0]            ; R8 := trap code for write
+    lea    R9,MsgSearch[R0]    ; R9 := &"Search "
+    lea    R10,12[R0]          ; R10 := string length
+    trap   R8,R9,R10           ; write "Search "
+; print i
+    add    R1,R3,R0            ; R1 = i = index of list to be searched
+    jal    R13,WriteValIntFixedWidth[R0]  ; write integer
+; print " for "
+    lea    R8,2[R0]            ; R8 := trap code for write
+    lea    R9,MsgFor[R0]       ; R9 := &" for "
+    lea    R10,5[R0]           ; R10 := string length
+    trap   R8,R9,R10           ; write " for "
+; print x
+;   add    R1,R5,R0            ; R1 = argument = x
+    load   R1,CmdArgX[R0]      ; R1 = argument = x
+    jal    R13,WriteValIntFixedWidth[R0]  ; write integer
+    jal    R13,WriteNewLine[R0]
+
+;--------------------------------------------------------------------;--------------------------------------------------------------------;--------------------------------------------------------------------
+
+; Initialize p
+    load R6, CmdArgP[R0]       ; R6 := p (pointer to current node in list)
+    store R0, CmdSearchFound[R0] ; found := false
+
+SearchLoop
+; Check if p is nil
+    cmp R6, R0                 ; compare p, nil
+    jumpeq CmdSearchDone[R0]   ; if p = nil then goto CmdSearchDone
+
+; Check if p.value == x
+    load R5, CmdArgX[R0]       ; R5 := x (value to search)
+    load R8, 0[R6]             ; R8 := p.value
+    cmp R5, R8                 ; compare x, p.value
+    jumpeq SearchFound[R0]         ; if x == p.value then goto SearchFound
+    jump SLnext[R0]            ; else goto SLnext
+
+SearchFound
+; Set found to true
+    load R9, #1                ; R9 := 1 (true)
+    store R9, CmdSearchFound[R0] ; found := true
+    jump CmdSearchDone[R0]     ; go to finish command
+
+SLnext
+; Update p
+    load R6, 1[R6]             ; R6 := p.next
+    jump SearchLoop[R0]        ; goto SearchLoop
+
+CmdSearchDone
+; Return found
+    load R1, CmdSearchFound[R0] ; R1 := found
+    jump CmdDone[R0]           ; goto CmdDone
+
+;--------------------------------------------------------------------;--------------------------------------------------------------------;--------------------------------------------------------------------
+    jump   CmdDone[R0]         ; go to finish command
+
+
+;--------------------------------------------------------------------
+; CmdPrint •••••••••••••••••••••••••••••••••••••••••••••••••••••••••
+;--------------------------------------------------------------------
+
+CmdPrint
+; Print out the command record
+; print "Print list "
+    lea    R8,2[R0]            ; R8 := trap code for write
+    lea    R9,MsgPrint[R0]     ; R9 := &"Print list "
+    lea    R10,11[R0]          ; R10 := string length
+    trap   R8,R9,R10           ; write "Print "
+; print i
+    add    R1,R3,R0            ; R1 = i = index of list argument
+    jal    R13,WriteValIntFixedWidth[R0]  ; write integer
+    jal    R13,WriteNewLine[R0]
+
+;--------------------------------------------------------------------;--------------------------------------------------------------------;--------------------------------------------------------------------
+
+; Initialize p
+    load R6, CmdArgP[R0]       ; R6 := p (pointer to current node in list)
+
+PLloop
+; Check if p is nil
+    cmp R6, R0 ; compare p, nil
+    jumpeq CmdDone[R0]         ; if p = nil then goto CmdDone
+
+; Print p.value
+    load R1, 0[R6]             ; R1 := p.value
+    jal R13, PrintValue[R0]    ; PrintValue(R1)
+
+; Update p
+    load R6, 1[R6]             ; R6 := p.next
+    jump PLloop[R0]            ; goto PLloop
+
+;--------------------------------------------------------------------;--------------------------------------------------------------------;--------------------------------------------------------------------
+
+    jump   CmdDone[R0]         ; go to finish command
+
